@@ -117,6 +117,31 @@ ToDo:
   - nur ['produkte-lagerbestand', activeLieferantId] invalidieren, nicht global ['produkte'].
 - Optional: einfacher "Abbrechen" Button pro Zeile, der lokale Edits verwirft.
 
+## F11 – Admin Reklamationen Cleanup
+
+Ziel:
+- Admin-Reklamationsseite skalierbar und wartbar machen, ohne Verhalten zu ändern (weiterhin read-only).
+
+ToDo:
+- Query-Strategie vorbereiten:
+  - Reklamationen laden, IDs für bestellung/restaurant/lieferant extrahieren.
+  - TODO-Kommentare für spätere Umstellung auf id__in-Queries ergänzen
+    (aber aktuell noch keine Backend-Änderung durchführen).
+- Lookup-Performance:
+  - bestellungenMap, restaurantsMap, lieferantenMap mit useMemo einführen (id → Entity).
+  - Alle Array.find-Lookups in Filter, Render und Modal-Props auf O(1)-Map-Lookups umstellen.
+- Status-/Typ-Konfiguration:
+  - statusConfig und typConfig im File zentral bündeln und an bestehende Reklamations-Configs angleichen
+    (keine neue globale Config-Datei anlegen, nur Konsistenz im File herstellen).
+- Filter-/Search-Logik:
+  - Filter- und Suchlogik in eine klar strukturierte Helper-Funktion auslagern
+    (keine Logik direkt im JSX).
+- KPIs:
+  - KPI-Berechnung (offen / in_bearbeitung / geloest / abgelehnt) auf einen einzigen Durchlauf über reklamationen reduzieren.
+- Loading/Error:
+  - isLoading / isError für alle Queries nutzen und klar getrennte Loading-/Error-/Empty-States anzeigen.
+
+
 
 
 

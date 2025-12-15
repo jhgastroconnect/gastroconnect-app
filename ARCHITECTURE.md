@@ -88,6 +88,42 @@ Datei: supplier_lagerbestand.tsx
   - Kein Optimistic Update, schlechtes UX bei langsamen Requests.
   - Query-Invalidation zu global (betrifft auch Produktkatalog).
 
+  ## Admin Reklamationen
+Datei: AdminReklamationen.jsx
+
+Zweck:
+- Zentrale Übersicht aller Reklamationen im System (globaler Admin-Blick).
+- Filter nach Status, Restaurant, Lieferant, Suchtext.
+- KPI-Cards (Anzahl offen / in Bearbeitung / gelöst / abgelehnt).
+- Detail-Ansicht via ReklamationDetailModal (inkl. Bestellung/Restaurant/Lieferant).
+
+Datenquellen:
+- Reklamationen: base44.entities.Reklamation.list('-created_date')
+  → alle Reklamationen, nach Erstellungsdatum absteigend.
+- Bestellungen: base44.entities.Bestellung.list()
+  → aktuell ALLE Bestellungen (Overfetching).
+- Restaurants: base44.entities.Restaurant.list()
+  → aktuell ALLE Restaurants (Overfetching).
+- Lieferanten: base44.entities.Lieferant.list()
+  → aktuell ALLE Lieferanten.
+
+Logik:
+- Filter-Pipeline:
+  1) Status-Filter (offen / in_bearbeitung / geloest / abgelehnt)
+  2) Restaurant-Filter
+  3) Lieferanten-Filter
+  4) Suchtext (Bestellnummer, Restaurantname, Lieferantenname, Beschreibung)
+- KPIs über mehrfaches Array.filter auf reklamationen.
+- Detail-Modal erhält entspr. Entities via Array.find in den großen Listen.
+
+Probleme:
+- Massive Overfetching (Bestellungen/Restaurants/Lieferanten per .list statt id__in).
+- O(n²)-Lookups durch Array.find in Filter und Render-Loop.
+- Duplizierte statusConfig/typConfig (auch in anderen Reklamations-Komponenten).
+- Keine staleTime, kein differenziertes Error-Handling.
+- Admin-spezifische Aktionen (Status-Änderung, Zuweisung, Kommentare) noch nicht implementiert.
+
+
 
 
 
