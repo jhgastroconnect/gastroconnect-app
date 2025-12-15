@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, Truck } from 'lucide-react';
+import { AlertCircle, Truck, ChevronDown } from 'lucide-react';
 import ProduktFilter from '@/components/katalog/ProduktFilter';
 import ProduktCard from '@/components/katalog/ProduktCard';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -94,12 +94,85 @@ function combineFilters(produkte: any[], filters: {
   return filtered;
 }
 
+/**
+ * Prüft Stock-Status eines Produkts
+ * @param produkt - Produkt-Objekt
+ * @returns { isAvailable, isLowStock, stockMessage }
+ */
+function getStockStatus(produkt: any): {
+  isAvailable: boolean;
+  isLowStock: boolean;
+  stockMessage: string | null;
+} {
+  const stock = produkt.stock ?? null;
+  
+  // Kein Stock-Tracking
+  if (stock === null || stock === undefined) {
+    return { isAvailable: true, isLowStock: false, stockMessage: null };
+  }
+  
+  // Stock = 0 → Nicht verfügbar
+  if (stock === 0) {
+    return { isAvailable: false, isLowStock: false, stockMessage: 'Nicht verfügbar' };
+  }
+  
+  // Low Stock (unter 10 Einheiten)
+  if (stock > 0 && stock < 10) {
+    return { isAvailable: true, isLowStock: true, stockMessage: 'Begrenzter Bestand' };
+  }
+  
+  // Ausreichend Stock
+  return { isAvailable: true, isLowStock: false, stockMessage: null };
+}
+
 // ============================================================================
 // SUB-COMPONENTS
 // ============================================================================
 
 /**
- * Filter-Leiste mit Lieferanten-Info und ETA-Badge
+ * Mobile Filter Dropdown (collapsed)
+ */
+function MobileFilterDropdown({
+  kategorie,
+  setKategorie,
+  suchtext,
+  setSuchtext,
+  lieferantFilter,
+  setLieferantFilter,
+  verfuegbareLieferanten
+}: any) {
+  const [isOpen, setIsOpen] = useState(false);
+  const { t } = useTranslation();
+  
+  return (
+    <div className="md:hidden">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-lg"
+      >
+        <span className="text-sm font-medium text-slate-700">Filter</span>
+        <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {isOpen && (
+        <div className="mt-2 p-4 bg-white border border-slate-200 rounded-lg space-y-3">
+          <ProduktFilter
+            kategorie={kategorie}
+            setKategorie={setKategorie}
+            suchtext={suchtext}
+            setSuchtext={setSuchtext}
+            lieferant={lieferantFilter}
+            setLieferant={setLieferantFilter}
+            lieferanten={verfuegbareLieferanten}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Filter-Leiste mit Lieferanten-Info und ETA-Badge (Desktop)
  */
 function FilterBar({ 
   kategorie, 
@@ -116,7 +189,7 @@ function FilterBar({
   const { t } = useTranslation();
   
   return (
-    <>
+    <div className="hidden md:block space-y-4">
       {/* Lieferant-Info mit ETA (wenn gefiltert) */}
       {lieferantFilter && currentRole === ROLES.RESTAURANT && selectedLieferant && (
         <Card className="bg-gradient-to-r from-emerald-50 to-white border-emerald-200">
@@ -157,12 +230,111 @@ function FilterBar({
         setLieferant={setLieferantFilter}
         lieferanten={verfuegbareLieferanten}
       />
-    </>
+    </div>
   );
 }
 
 /**
- * Wrapper für einzelne Produkt-Card mit allen benötigten Daten
+ * Mobile Produkt Card (vereinfacht: nur Bild, Name, Preis, Button)
+ */
+function MobileProductCard({
+  produkt,
+  finalPreis,
+  stockStatus
+}: any) {
+  const { isAvailable, isLowStock, stockMessage } = stockStatus;
+  
+  return (
+    <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+      {/* Produktbild */}
+      <div className="relative h-40 bg-slate-100">
+        {produkt.bild_url ? (
+          <img 
+            src={produkt.bild_url} 
+            alt={produkt.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-slate-400">
+            Kein Bild
+          </div>
+        )}
+        
+        {/* Low Stock Badge */}
+        {isLowStock && (
+          <div className="absolute top-2 right-2 px-2 py-1 bg-amber-500 text-white text-xs font-semibold rounded">
+            {stockMessage}
+          </div>
+        )}
+      </div>
+      
+      {/* Produkt-Info */}
+      <div className="p-3 space-y-2">
+        <h3 className="font-semibold text-slate-900 text-sm line-clamp-2">
+          {produkt.name}
+        </h3>
+        
+        <p className="text-lg font-bold text-emerald-600">
+          €{finalPreis.toFixed(2)}
+        </p>
+        
+        {/* Add to Cart Button */}
+        <button
+          disabled={!isAvailable}
+          className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+            isAvailable
+              ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+              : 'bg-slate-200 text-slate-500 cursor-not-allowed'
+          }`}
+        >
+          {isAvailable ? 'In den Warenkorb' : stockMessage}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Desktop Produkt Card (volle Features)
+ */
+function DesktopProductCard({
+  produkt,
+  lieferant,
+  finalPreis,
+  hasSpecialPrice,
+  preisInfo,
+  standardPreis,
+  isFavorite,
+  stockStatus
+}: any) {
+  const { isAvailable, isLowStock, stockMessage } = stockStatus;
+  
+  return (
+    <div className="relative">
+      {/* Low Stock Badge (oben rechts) */}
+      {isLowStock && (
+        <div className="absolute top-2 right-2 z-10 px-2 py-1 bg-amber-500 text-white text-xs font-semibold rounded">
+          {stockMessage}
+        </div>
+      )}
+      
+      {/* Original ProduktCard mit Stock-Override */}
+      <ProduktCard
+        produkt={produkt}
+        lieferant={lieferant}
+        preis={finalPreis}
+        hatIndividuellenPreis={hasSpecialPrice}
+        preisInfo={preisInfo}
+        standardPreis={standardPreis}
+        isFavorite={isFavorite}
+        stockStatus={stockStatus}
+      />
+    </div>
+  );
+}
+
+/**
+ * Wrapper für einzelne Produkt-Card (responsive)
  */
 function ProductCardWrapper({ 
   produkt, 
@@ -184,17 +356,33 @@ function ProductCardWrapper({
     ? { rabatt_prozent: aktion.rabatt_prozent } 
     : getPreisInfo(produkt.id);
   
+  const stockStatus = getStockStatus(produkt);
+  
   return (
-    <ProduktCard
-      key={produkt.id}
-      produkt={produkt}
-      lieferant={lieferant}
-      preis={finalPreis}
-      hatIndividuellenPreis={hasSpecialPrice}
-      preisInfo={preisInfo}
-      standardPreis={produkt.standard_preis}
-      isFavorite={currentRole === ROLES.RESTAURANT && isFavorite(produkt.lieferant)}
-    />
+    <>
+      {/* Mobile Version */}
+      <div className="md:hidden">
+        <MobileProductCard
+          produkt={produkt}
+          finalPreis={finalPreis}
+          stockStatus={stockStatus}
+        />
+      </div>
+      
+      {/* Desktop Version */}
+      <div className="hidden md:block">
+        <DesktopProductCard
+          produkt={produkt}
+          lieferant={lieferant}
+          finalPreis={finalPreis}
+          hasSpecialPrice={hasSpecialPrice}
+          preisInfo={preisInfo}
+          standardPreis={produkt.standard_preis}
+          isFavorite={currentRole === ROLES.RESTAURANT && isFavorite(produkt.lieferant)}
+          stockStatus={stockStatus}
+        />
+      </div>
+    </>
   );
 }
 
@@ -209,7 +397,6 @@ function ProductList({
   suchtext,
   kategorie,
   lieferantFilter,
-  // Funktionen für ProductCardWrapper
   getLieferant,
   getPreis,
   getPreisInfo,
@@ -222,14 +409,14 @@ function ProductList({
   // Loading State
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,280px)] gap-4 sm:gap-6 sm:justify-start">
+      <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,280px)] gap-4 md:gap-6 md:justify-start">
         {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-          <div key={i} className="w-full sm:w-[280px] h-[280px] sm:h-[420px] bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <Skeleton className="h-[120px] sm:h-[180px] w-full" />
-            <div className="p-2 sm:p-4 space-y-2 sm:space-y-3">
-              <Skeleton className="h-4 sm:h-5 w-3/4" />
-              <Skeleton className="h-3 sm:h-4 w-1/2" />
-              <Skeleton className="h-8 sm:h-10 w-full" />
+          <div key={i} className="w-full md:w-[280px] h-[280px] md:h-[420px] bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <Skeleton className="h-[120px] md:h-[180px] w-full" />
+            <div className="p-3 md:p-4 space-y-2 md:space-y-3">
+              <Skeleton className="h-4 md:h-5 w-3/4" />
+              <Skeleton className="h-3 md:h-4 w-1/2" />
+              <Skeleton className="h-8 md:h-10 w-full" />
             </div>
           </div>
         ))}
@@ -264,10 +451,10 @@ function ProductList({
     );
   }
   
-  // Produktliste
+  // Produktliste (Mobile: 1 Spalte, Desktop: Auto-fill Grid)
   return (
     <>
-      <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,280px)] gap-4 sm:gap-6 sm:justify-start">
+      <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,280px)] gap-4 md:gap-6 md:justify-start">
         {gefilterteProdukte.map((produkt: any) => (
           <ProductCardWrapper
             key={produkt.id}
@@ -523,7 +710,18 @@ export default function Produktkatalog() {
         </p>
       </div>
 
-      {/* Filter Bar mit Lieferanten-Info */}
+      {/* Mobile Filter Dropdown */}
+      <MobileFilterDropdown
+        kategorie={kategorie}
+        setKategorie={setKategorie}
+        suchtext={suchtext}
+        setSuchtext={setSuchtext}
+        lieferantFilter={lieferantFilter}
+        setLieferantFilter={setLieferantFilter}
+        verfuegbareLieferanten={verfuegbareLieferanten}
+      />
+
+      {/* Desktop Filter Bar */}
       <FilterBar
         kategorie={kategorie}
         setKategorie={setKategorie}
