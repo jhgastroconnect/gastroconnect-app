@@ -54,5 +54,14 @@ Datei: bestellung_detail_modal.tsx
 - Einzige Statusänderung: Empfang bestätigen → status=geliefert + empfangsdatum + Mail.
 - Probleme: Produktlist-Query, O(n)-Lookups, duplizierte Status-Config, kein sauberes Error/Loading-Handling.
 
+## Restaurant Reklamationen
+Datei: restaurant_reklamationen.tsx
+
+Zweck:
+- Reklamationen des Restaurants anzeigen.
+- Filter nach Status / Datum / Lieferant.
+- Detailansicht / Verlinkung zu Bestellung.
+
+
 
 

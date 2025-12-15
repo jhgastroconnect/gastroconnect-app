@@ -69,6 +69,18 @@ ToDo:
 - Error-/Loading-Handling für Positionen und Dokumente ergänzen.
 - Hilfsfunktionen für Produktnamen/Einheit und Status-/ETA-/Verspätungsanzeige aus JSX herausziehen.
 
+## F8 – Restaurant Reklamationen Cleanup
+
+Ziel:
+- Reklamations-Page für Restaurants lesbarer und performanter machen, ohne Verhalten zu ändern.
+
+ToDo:
+- Lieferanten-/Status-Lookups über Maps (useMemo) statt wiederholtem Array.find in Render-Loops.
+- Status-Badges an das zentrale Status-System (ORDER_STATUS / getStatusConfig) angleichen oder intern konsistent bündeln.
+- Filter- und Sortierlogik in eine klar strukturierte Hilfsfunktion auslagern (statt Logik direkt im JSX).
+- Loading- und Error-Handling ergänzen (statt leerer Liste als Fallback).
+- Navigation zu Bestellung / Reklamation über klare Helper-Funktionen kapseln.
+
 
 
 
