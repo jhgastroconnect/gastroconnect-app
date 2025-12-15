@@ -188,6 +188,38 @@ ToDo:
   - Einfache KPI-Berechnung (z.B. Gesamtanzahl Produkte, Anzahl pro Kategorie) in einem Durchlauf.
   - Noch keine neuen Status-Felder einführen, nur Struktur vorbereiten (Kommentare).
 
+  ## F14 – Admin Lieferanten Cleanup
+
+Ziel:
+- Admin-Lieferantenübersicht technisch an F11–F13 angleichen (Query-Handling, Status-Config, KPIs), Verhalten beibehalten.
+
+ToDo:
+- Query-/Error-Handling:
+  - Lieferanten-Query mit `staleTime` ausstatten.
+  - `isError`/`error` auslesen und eine einfache Error-UI mit Retry anzeigen.
+  - Loading-Skeleton für initialen Load beibehalten.
+
+- Filter-Logik:
+  - Filter-/Search-Logik in eine eigene Helper-Funktion auslagern (statt inline im useMemo).
+  - useMemo weiter nutzen, aber Abhängigkeiten klar halten.
+
+- Status-Konfiguration:
+  - Inline `getStatusBadge` in eine top-level `LIEFERANT_STATUS`-Konfiguration umbauen.
+  - Struktur: `{ labelKey, className, optional icon }`.
+  - Einheitliche Benennung (approved/pending/rejected ↔ aktiv/ausstehend/abgelehnt).
+
+- KPIs:
+  - Einfache StatCards für Lieferanten-Status:
+    - Gesamt
+    - approved
+    - pending
+    - rejected
+  - Single-Pass über `allLieferanten` für die Zählung.
+
+- Empty State:
+  - Speziellen Empty-State einführen, wenn keine Lieferanten (oder Filter zu streng).
+
+
 
 
 

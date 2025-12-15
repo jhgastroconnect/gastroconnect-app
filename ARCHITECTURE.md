@@ -190,6 +190,43 @@ Probleme:
 - Hardcoded Kategorien (nicht skalierbar, nicht konsistent mit anderen Pages).
 - Keine Status-/Stock-Anzeige, keine Admin-Aktionen (read-only Liste).
 
+## Admin Lieferanten
+Datei: AdminLieferanten.jsx
+
+Zweck:
+- Admin-Übersicht aller Lieferanten im System.
+- Verwaltung: Anlegen, Bearbeiten, Löschen.
+- Filter: Status (approved/pending/rejected), Textsuche (Name, E-Mail, PLZ, Ort).
+- CSV-Export der gefilterten Lieferanten.
+
+Datenquellen:
+- Lieferanten: base44.entities.Lieferant.list()
+  → lädt alle Lieferanten, keine Sortierung, keine staleTime.
+
+Logik:
+- Filter-Pipeline (useMemo):
+  1) Status-Filter (approved/pending/rejected/alle)
+  2) Textsuche über Name, E-Mail, PLZ, Ort (case-insensitive)
+- Sortierung:
+  - aktuell keine server- oder clientseitige Sortierung.
+- Status-Badge:
+  - getStatusBadge(status) mit inline-Konfiguration (labelKey + CSS-Klasse).
+
+Aktionen:
+- Erstellen/Bearbeiten:
+  - LieferantEditDialog (Modal) mit saveMutation (create/update).
+- Löschen:
+  - deleteMutation mit AlertDialog und klarer Cascade-Warnung.
+- Export:
+  - CSV-Export basierend auf gefilterten Lieferanten.
+
+Probleme:
+- Keine staleTime, kein isError/error für die Lieferanten-Query.
+- Status-Konfiguration inline, nicht konsistent mit anderen Status-Configs.
+- Filter-Logik direkt im useMemo, nicht ausgelagert.
+- Keine KPIs/StatCards (nur „x von y Lieferanten“).
+- Kein spezieller Empty State bei 0 Lieferanten.
+
 
 
 
