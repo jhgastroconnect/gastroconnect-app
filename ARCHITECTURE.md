@@ -34,5 +34,14 @@ Datei: restaurant_cart.tsx
 
 ## Restaurant Bestellungen Liste
 Datei: restaurant_orders_list.tsx
-Zweck: Historie / Status der Bestellungen des Restaurants anzeigen.
+
+- Bestellungen werden server-seitig gefiltert nach Restaurant (filter({ restaurant: activeRestaurantId })).
+- Tabs: offen (5 Status) vs. geschlossen (2 Status).
+- UI-Filter: Datum von/bis, Lieferant, Status; Sortierung: neueste zuerst.
+- Lädt ALLE Lieferanten und ALLE Restaurants, obwohl nur wenige gebraucht werden.
+- Lieferantensuche erfolgt mehrfach mit Array-find → O(n²) in Render + Export.
+- Status-Konfiguration (getStatusConfig) ist dupliziert mit Supplier-Dashboard.
+- Exportdaten werden bei jedem Render neu berechnet.
+- Auto-Refresh alle 3s.
+
 

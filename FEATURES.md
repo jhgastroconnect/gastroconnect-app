@@ -44,3 +44,19 @@ ToDo:
   damit wir sie später in die zentrale Order-API verlagern können.
 - Kein Backend-Verhalten ändern, nur Struktur + Kommentare.
 
+## F6 – Restaurant Bestellübersicht Cleanup (nur Struktur)
+
+Ziel:
+- Performance verbessern und Code aufräumen ohne Logikänderung.
+
+ToDo:
+- lieferantenMap mit useMemo einführen (id → Lieferant) für O(1)-Lookups.
+- Status-Konfiguration in ORDER_STATUS / getStatusConfig zentralisieren (wie Supplier-Dashboard).
+- Restaurant-Query perspektivisch auf .get(activeRestaurantId) umstellen (nur 1 Restaurant).
+- Filter-Pipeline lesbarer machen (eine zentrale Funktion für gefilterteBestellungen).
+- Exportdaten in Helper-Funktion auslagern, optional erst bei Export-Klick berechnen (aber Verhalten jetzt nicht ändern).
+- JSX von komplexer Bedingungslogik entlasten (kleine Helper-Funktionen für Status-/ETA-/Verspätungs-Anzeige).
+
+
+
+
