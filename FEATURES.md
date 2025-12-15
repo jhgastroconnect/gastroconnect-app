@@ -19,3 +19,12 @@ ToDo:
 - Wenn stock === 0 → Button disabled + "Nicht verfügbar".
 - Wenn stock low → Badge "Begrenzter Bestand".
 - Keine Backendänderungen annehmen, UI-only.
+
+## F4 – Lieferant Tagesübersicht Cleanup
+- Restaurant/Zone Lookup in Maps cachen (restaurantMap, zoneMap).
+- getZoneForRestaurant in eigene Funktion auslagern.
+- Status-Konfiguration zentralisieren (ORDER_STATUS).
+- Error-Handling hinzufügen (isError, isLoading).
+- O(n²)-Berechnungen entfernen.
+- UI-Struktur vereinfachen: Header, Filterleiste, Liste trennen.
+

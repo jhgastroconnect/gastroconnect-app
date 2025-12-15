@@ -12,9 +12,9 @@ Wichtige Seiten (bisher gesichert):
 ## Restaurant Produktkatalog
 Datei: product_catalog_restaurant.tsx
 Zweck: Produkte anzeigen, filtern, in den Warenkorb legen.
-Wichtige Datenquellen: (Namen der base44d.entities / Queries aus dem Code eintragen)
+Wichtige Datenquellen: base44.entities.Produkt.list()
 
 ## Lieferant Tagesübersicht
 Datei: orders_supplier_dashboard.tsx
 Zweck: Bestellungen/Lieferungen des Tages für Lieferanten anzeigen und bearbeiten.
-Wichtige Datenquellen: (Namen der base44d.entities / Queries aus dem Code eintragen)
+Wichtige Datenquellen: base44.entities.Bestellung.list()
