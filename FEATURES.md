@@ -219,6 +219,45 @@ ToDo:
 - Empty State:
   - Speziellen Empty-State einführen, wenn keine Lieferanten (oder Filter zu streng).
 
+## F15 – Admin Restaurants Cleanup
+
+Ziel:
+- Admin-Restaurantübersicht technisch an F11–F14 angleichen (Query-Handling, Status-Config, KPIs), Verhalten beibehalten.
+- Unterschied `approved` vs. `active` dokumentieren, aber Business-Logik nicht ändern.
+
+ToDo:
+- Query-/Error-Handling:
+  - Restaurants-Query mit `staleTime` (z.B. 5 Min) ergänzen.
+  - `isError`/`error` auslesen und eine einfache Error-UI mit Retry-Button anzeigen.
+  - Loading-Skeleton für initialen Load beibehalten.
+
+- Filter-Logik:
+  - Filter-/Search-Logik in eine eigene Helper-Funktion auslagern (z.B. `filterRestaurants`).
+  - `useMemo` für gefilterte Liste beibehalten, Dependencies klar halten.
+
+- Status-Konfiguration:
+  - Inline `getStatusBadge` in eine top-level `RESTAURANT_STATUS`-Konfiguration umbauen.
+  - Struktur: `{ labelKey, className, optional icon, optional description }`.
+  - Statuswerte: `approved`, `active`, `pending`, `rejected`.
+  - Nur Dokumentation/Texte anpassen, Status-Workflow nicht ändern.
+  - Translation Keys auf Deutsch angleichen (konsistent mit F14), inkl. TODO-Kommentar zur genauen Unterscheidung `approved` vs. `active`.
+
+- KPIs:
+  - Einfache StatCards für Restaurant-Status:
+    - Gesamt
+    - approved
+    - active (falls im Datenmodell genutzt)
+    - pending
+    - rejected
+  - Zählung in einem Durchlauf über `allRestaurants`.
+
+- Empty State:
+  - Speziellen Empty-State einführen, wenn gefilterte Liste leer ist (inkl. Hinweis auf Filter).
+  - Separater Text für „keine Restaurants im System“ vs. „Filter liefert 0 Ergebnisse“.
+
+- Code-Organisation:
+  - `FIELDS`-Array und `RESTAURANT_STATUS` im oberen Config-Bereich der Datei gruppieren.
+
 
 
 

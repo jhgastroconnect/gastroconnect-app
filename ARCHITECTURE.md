@@ -227,6 +227,45 @@ Probleme:
 - Keine KPIs/StatCards (nur „x von y Lieferanten“).
 - Kein spezieller Empty State bei 0 Lieferanten.
 
+## Admin Restaurants
+Datei: AdminRestaurants.jsx
+
+Zweck:
+- Admin-Übersicht aller Restaurants im System.
+- Verwaltung: Anlegen, Bearbeiten, Löschen.
+- Filter: Status (approved/active/pending/rejected), Textsuche (Name, E-Mail, PLZ, Ort).
+- CSV-Export der gefilterten Restaurants.
+
+Datenquellen:
+- Restaurants: `base44.entities.Restaurant.list()`
+  → lädt alle Restaurants, keine Sortierung, keine staleTime.
+
+Logik:
+- Filter-Pipeline (useMemo):
+  1) Status-Filter (approved/active/pending/rejected/alle)
+  2) Textsuche über Name, E-Mail, PLZ, Ort (case-insensitive)
+- Sortierung:
+  - aktuell keine server- oder clientseitige Sortierung.
+- Status-Badge:
+  - `getStatusBadge(status)` mit inline-Konfiguration (labelKey + CSS-Klasse).
+  - Statuswerte: `approved`, `active`, `pending`, `rejected` (Bedeutung von `approved` vs. `active` aktuell nicht dokumentiert).
+
+Aktionen:
+- Erstellen/Bearbeiten:
+  - `EntityEditDialog` (generic Modal mit `FIELDS`-Config) + `saveMutation` (create/update).
+- Löschen:
+  - `deleteMutation` mit AlertDialog und klarer Cascade-Warnung (löscht Bestellungen, Dokumente, Preislisten, Bestellvorlagen, Benachrichtigungen).
+- Export:
+  - CSV-Export basierend auf gefilterten Restaurants.
+
+Probleme:
+- Keine `staleTime`, kein `isError/error` für die Restaurants-Query.
+- Status-Konfiguration inline, nicht konsistent zu anderen Status-Configs (F11–F14).
+- Filter-Logik direkt im useMemo, nicht ausgelagert.
+- Keine KPIs/StatCards (nur „x von y Restaurants“).
+- Kein spezieller Empty State bei 0 Restaurants.
+- Semantik von `approved` vs. `active` nicht beschrieben (Business-Logik TODO).
+
 
 
 
