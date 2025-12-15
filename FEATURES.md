@@ -28,3 +28,19 @@ ToDo:
 - O(n²)-Berechnungen entfernen.
 - UI-Struktur vereinfachen: Header, Filterleiste, Liste trennen.
 
+## F5 – Restaurant Warenkorb Cleanup (nur Struktur)
+
+Ziel:
+- Code lesbarer machen, ohne Verhalten zu ändern.
+
+ToDo:
+- Summenberechnung in eigene Helper-Funktionen auslagern.
+- Eine zentrale handleBestellungSenden(proLieferant) Funktion klar strukturieren.
+- UI in drei klare Blöcke aufteilen:
+  1) Gruppen nach Lieferant (Positionen)
+  2) Summenbereich (Zwischensumme, Gesamtbetrag)
+  3) Actions (Buttons: Zurück, Bestellung senden).
+- Kommentare an die kritischen Stellen (Stock-Check, zwei API-Calls, Query-Invalidierung),
+  damit wir sie später in die zentrale Order-API verlagern können.
+- Kein Backend-Verhalten ändern, nur Struktur + Kommentare.
+
