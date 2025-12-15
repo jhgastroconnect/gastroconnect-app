@@ -94,6 +94,30 @@ ToDo:
 - Loading-/Error-Handling für alle Queries ergänzen (statt leerer Arrays als Fallback).
 - Nur Kommentare/TODOs für bessere Queries (id__in) ergänzen, aber noch keine Backend-Änderungen vornehmen.
 
+## F10 – Lieferant Lagerbestand Stabilisierung
+
+Ziel:
+- Lagerbestand-Seite stabil und pilot-tauglich machen (Race Conditions entfernen, Datenqualität sichern).
+
+ToDo:
+- Polling nur aktiv, wenn:
+  - Tab sichtbar (document.hidden === false)
+  - kein Produkt im Edit-Mode ist (editingStocks leer)
+  - Intervall auf ca. 10s reduzieren statt 2s.
+- Strikte Validierung vor Save:
+  - keine negativen Werte
+  - sinnvoller Max-Wert (z.B. 0–999999)
+  - nur numerische Werte akzeptieren.
+- Anzeige klar trennen:
+  - Unterschied zwischen "0 Bestand" (out_of_stock) und "nicht getrackt" (current_stock === null).
+- Optimistic Update für updateStockMutation:
+  - Query-Daten sofort mit neuem Bestand/Status updaten.
+  - Rollback bei Fehler.
+- Query-Invalidation einschränken:
+  - nur ['produkte-lagerbestand', activeLieferantId] invalidieren, nicht global ['produkte'].
+- Optional: einfacher "Abbrechen" Button pro Zeile, der lokale Edits verwirft.
+
+
 
 
 

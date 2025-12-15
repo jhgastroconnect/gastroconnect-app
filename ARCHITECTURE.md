@@ -75,6 +75,20 @@ Datei: supplier_reklamationen.tsx
   - Duplizierte Status-/Typ-Configs wie auf anderen Pages.
   - Kein Error-Handling, schwache Loading-States.
 
+  ## Lieferant Lagerbestand
+Datei: supplier_lagerbestand.tsx
+
+- Lädt Produkte server-seitig gefiltert nach lieferant (activeLieferantId), Polling alle 2s.
+- Felder: current_stock, stock_status, min_stock, standard_preis, kategorie, einheit.
+- Aktionen: Bestand im Input ändern, Status optional manuell setzen, Button "Speichern" pro Produkt.
+- Beim Speichern: current_stock + stock_status werden via Mutation aktualisiert, danach Query-Invalidation für ['produkte'] und ['produkte-lagerbestand'].
+- Probleme:
+  - Aggressives Polling (2s) überschreibt lokale Edits (Race Condition).
+  - Keine Validierung (negative/zu große/ungültige Werte möglich).
+  - Kein Optimistic Update, schlechtes UX bei langsamen Requests.
+  - Query-Invalidation zu global (betrifft auch Produktkatalog).
+
+
 
 
 
