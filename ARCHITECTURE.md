@@ -18,3 +18,12 @@ Wichtige Datenquellen: base44.entities.Produkt.list()
 Datei: orders_supplier_dashboard.tsx
 Zweck: Bestellungen/Lieferungen des Tages für Lieferanten anzeigen und bearbeiten.
 Wichtige Datenquellen: base44.entities.Bestellung.list()
+
+## Restaurant Warenkorb
+Datei: restaurant_cart.tsx
+Zweck: Aktuellen Warenkorb anzeigen, Menge ändern, Bestellung auslösen.
+
+## Restaurant Bestellungen Liste
+Datei: restaurant_orders_list.tsx
+Zweck: Historie / Status der Bestellungen des Restaurants anzeigen.
+
