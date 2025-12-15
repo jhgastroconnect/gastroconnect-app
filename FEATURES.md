@@ -141,6 +141,28 @@ ToDo:
 - Loading/Error:
   - isLoading / isError für alle Queries nutzen und klar getrennte Loading-/Error-/Empty-States anzeigen.
 
+  ## F12 – Admin Bestellungen Cleanup
+
+Ziel:
+- Admin-Bestellübersicht performanter und wartbarer machen, ohne Verhalten zu ändern (weiterhin read-only + Export).
+
+ToDo:
+- Lookup-Performance:
+  - restaurantsMap und lieferantenMap mit useMemo einführen (id → Entity).
+  - Alle Array.find-Lookups in Filter, Render und Export auf Map-Lookups umstellen.
+- Query-/Error-Handling:
+  - staleTime und isError/isLoading für alle drei Queries (Bestellungen, Restaurants, Lieferanten) setzen.
+  - Klar getrennte Loading-/Error-/Empty-States anzeigen.
+  - TODO-Kommentar für spätere id__in-Umstellung (aber jetzt keine Backend-Änderung).
+- Filter-/Search-Logik:
+  - Filter-/Suchlogik in eine eigene Helper-Funktion auslagern (statt alles inline in useMemo).
+- Status-Konfiguration:
+  - getStatusConfig in eine konsistente ORDER_STATUS-Konfiguration im File umbauen (keine neue globale Config-Datei in F12).
+  - Translation-Keys vereinheitlichen.
+- KPIs (optional, wenn noch Zeit):
+  - Einfache Stat-Cards (Anzahl Bestellungen je Status) mit Single-Pass-Berechnung.
+
+
 
 
 

@@ -123,6 +123,40 @@ Probleme:
 - Keine staleTime, kein differenziertes Error-Handling.
 - Admin-spezifische Aktionen (Status-Änderung, Zuweisung, Kommentare) noch nicht implementiert.
 
+## Admin Bestellungen
+Datei: AdminBestellungen.jsx
+
+Zweck:
+- Zentrale Übersicht aller Bestellungen im System (Admin-Sicht).
+- Filter: Status, Restaurant, Lieferant, Datum (von/bis), Suchtext.
+- CSV-Export der gefilterten Bestellungen.
+
+Datenquellen:
+- Bestellungen: base44.entities.Bestellung.list('-bestelldatum')
+  → alle Bestellungen, nach Datum absteigend.
+- Restaurants: base44.entities.Restaurant.list()
+  → aktuell ALLE Restaurants, nur für Anzeige/Filter.
+- Lieferanten: base44.entities.Lieferant.list()
+  → aktuell ALLE Lieferanten, nur für Anzeige/Filter.
+
+Logik:
+- Filter-Pipeline:
+  1) Status-Filter
+  2) Restaurant-Filter
+  3) Lieferanten-Filter
+  4) Datumsbereich (von/bis)
+  5) Suchtext (Bestellnummer, Restaurantname, Lieferantenname)
+- Sortierung: server-seitig via -bestelldatum.
+- Lookup-Helfer: getRestaurantName / getLieferantName (Array.find in großen Arrays).
+- Export: ExportButton mit exportData (nutzt dieselben Lookups).
+
+Probleme:
+- Overfetching: Restaurants/Lieferanten per .list() (keine id__in-Strategie).
+- O(n²)-Lookups in Filter, Render, Export durch Array.find.
+- Status-Config inline definiert und dupliziert zu anderen Bestellungs-Views.
+- Kein combined Error-Handling, nur Loading für Bestellungen.
+- Keine KPIs/Statistiken für Admin.
+
 
 
 
