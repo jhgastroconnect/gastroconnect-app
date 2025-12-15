@@ -57,6 +57,19 @@ ToDo:
 - Exportdaten in Helper-Funktion auslagern, optional erst bei Export-Klick berechnen (aber Verhalten jetzt nicht ändern).
 - JSX von komplexer Bedingungslogik entlasten (kleine Helper-Funktionen für Status-/ETA-/Verspätungs-Anzeige).
 
+## F7 – Bestellung Detail Modal Cleanup (nur Struktur)
+
+Ziel:
+- Performance verbessern und Code aufräumen ohne Verhalten zu ändern.
+
+ToDo:
+- produktMap mit useMemo einführen (id → Produkt) für O(1)-Lookups.
+- Query für Produkte perspektivisch auf filter({ id__in: [...] }) umstellen (jetzt nur vorbereiten, Verhalten gleich lassen).
+- Status-Config an zentrale ORDER_STATUS/getStatusConfig anpassen (kein eigener Block mehr).
+- Error-/Loading-Handling für Positionen und Dokumente ergänzen.
+- Hilfsfunktionen für Produktnamen/Einheit und Status-/ETA-/Verspätungsanzeige aus JSX herausziehen.
+
+
 
 
 
