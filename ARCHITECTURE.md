@@ -44,4 +44,15 @@ Datei: restaurant_orders_list.tsx
 - Exportdaten werden bei jedem Render neu berechnet.
 - Auto-Refresh alle 3s.
 
+## Bestellung Detail Modal
+Datei: bestellung_detail_modal.tsx
+
+- Props: bestellung + Lieferant-/Restaurant-Namen.
+- Lädt Positionen (filter nach bestellung.id).
+- Lädt ALLE Produkte (list), nutzt sie nur für Namen/Einheit.
+- Lädt Dokumente (filter nach bestellung.id).
+- Einzige Statusänderung: Empfang bestätigen → status=geliefert + empfangsdatum + Mail.
+- Probleme: Produktlist-Query, O(n)-Lookups, duplizierte Status-Config, kein sauberes Error/Loading-Handling.
+
+
 
