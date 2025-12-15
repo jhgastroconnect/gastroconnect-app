@@ -81,6 +81,20 @@ ToDo:
 - Loading- und Error-Handling ergänzen (statt leerer Liste als Fallback).
 - Navigation zu Bestellung / Reklamation über klare Helper-Funktionen kapseln.
 
+## F9 – Lieferant Reklamationen Cleanup
+
+Ziel:
+- Lieferanten-Reklamationsseite performanter und lesbarer machen, ohne Verhalten zu ändern.
+
+ToDo:
+- bestellungenMap und restaurantMap mit useMemo einführen (id → Entity) und überall statt Array.find verwenden.
+- Status-/Typ-Konfiguration im File bündeln und an bestehendes Status-System anlehnen (kein neues Import-File anlegen).
+- Filter-/Suchlogik in eine gut lesbare Hilfsfunktion auslagern.
+- KPI-Berechnung auf einen einzigen Durchlauf über das Array reduzieren.
+- Loading-/Error-Handling für alle Queries ergänzen (statt leerer Arrays als Fallback).
+- Nur Kommentare/TODOs für bessere Queries (id__in) ergänzen, aber noch keine Backend-Änderungen vornehmen.
+
+
 
 
 

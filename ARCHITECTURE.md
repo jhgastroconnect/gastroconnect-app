@@ -62,6 +62,20 @@ Zweck:
 - Filter nach Status / Datum / Lieferant.
 - Detailansicht / Verlinkung zu Bestellung.
 
+## Lieferant Reklamationen
+Datei: supplier_reklamationen.tsx
+
+- Lädt Reklamationen server-seitig gefiltert nach lieferant (activeLieferantId), sortiert nach created_date (neueste zuerst).
+- Zusätzliche Queries: ALLE Bestellungen (.list), ALLE Restaurants (.list), ALLE Lieferanten.
+- Filter: Status + Suchtext (Bestellung, Restaurant, Beschreibung).
+- KPIs: Anzahl nach Status (offen, in_bearbeitung, geloest, abgelehnt).
+- Probleme:
+  - O(n²)-Lookups: getBestellungNummer / getRestaurantName in Filter + Render.
+  - Lädt alle Bestellungen/Restaurants, obwohl wenige benötigt werden.
+  - Duplizierte Status-/Typ-Configs wie auf anderen Pages.
+  - Kein Error-Handling, schwache Loading-States.
+
+
 
 
 
