@@ -162,6 +162,33 @@ ToDo:
 - KPIs (optional, wenn noch Zeit):
   - Einfache Stat-Cards (Anzahl Bestellungen je Status) mit Single-Pass-Berechnung.
 
+  ## F13 – Admin Produkte Cleanup
+
+Ziel:
+- Admin-Produktübersicht performanter und wartbarer machen, ohne Verhalten zu ändern (weiterhin read-only Liste).
+
+ToDo:
+- Query/Lookup:
+  - lieferantenMap mit useMemo einführen (id → Entity).
+  - Alle Array.find-Lookups für Lieferanten auf Map-Lookups umstellen.
+  - filteredProdukte in useMemo kapseln.
+  - staleTime und isError/isLoading für Produkte- und Lieferanten-Queries setzen.
+  - TODO-Kommentar für spätere id__in-Queries (noch keine Backend-Änderung).
+
+- Filter-/Suchlogik:
+  - Filter-/Search-Logik in eine eigene Helper-Funktion auslagern (statt direkt im JSX).
+  - Suchfeld klar dokumentieren (aktuell nur Name).
+
+- Kategorien:
+  - Hardcoded KATEGORIEN-Array beibehalten, aber mit TODO kommentieren
+    (später dynamisch aus DB / Config laden).
+  - Kategorie-Filter-Logik klar strukturieren.
+
+- Status/KPIs (optional, wenn Zeit):
+  - Einfache KPI-Berechnung (z.B. Gesamtanzahl Produkte, Anzahl pro Kategorie) in einem Durchlauf.
+  - Noch keine neuen Status-Felder einführen, nur Struktur vorbereiten (Kommentare).
+
+
 
 
 

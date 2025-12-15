@@ -157,6 +157,39 @@ Probleme:
 - Kein combined Error-Handling, nur Loading für Bestellungen.
 - Keine KPIs/Statistiken für Admin.
 
+## Admin Produkte
+Datei: AdminProdukte.jsx
+
+Zweck:
+- Admin-Übersicht aller Produkte im System.
+- Filter: Kategorie (hardcoded Liste), Textsuche nach Produktname.
+- Anzeige: Name, Kategorie, Lieferant, Preis.
+
+Datenquellen:
+- Produkte: base44.entities.Produkt.list()
+  → lädt aktuell alle Produkte, keine Sortierung, keine staleTime.
+- Lieferanten: base44.entities.Lieferant.list()
+  → lädt alle Lieferanten, nur für Anzeige des Lieferantennamens.
+- Kategorien: derzeit als lokales KATEGORIEN-Array im Code definiert, nicht aus DB.
+
+Logik:
+- Filter-Pipeline:
+  1) Kategorie-Filter (KATEGORIEN Array, inkl. „Alle“).
+  2) Textsuche auf Produktname (case-insensitive).
+- Sortierung:
+  - keine server- oder clientseitige Sortierung.
+- Lookups:
+  - getLieferantName(id) nutzt Array.find auf der kompletten lieferanten-Liste.
+  - Lookups werden im Render-Loop aufgerufen.
+
+Probleme:
+- Overfetching: alle Lieferanten per .list(), keine id__in-Strategie.
+- O(n)-Lookups in Render-Loops (getLieferantName per Array.find).
+- filteredProdukte ohne useMemo → Filter läuft bei jedem Render.
+- Keine staleTime, kein Error-Handling für Queries.
+- Hardcoded Kategorien (nicht skalierbar, nicht konsistent mit anderen Pages).
+- Keine Status-/Stock-Anzeige, keine Admin-Aktionen (read-only Liste).
+
 
 
 
