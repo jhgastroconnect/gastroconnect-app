@@ -439,6 +439,73 @@ Umfang (MVP F19):
   - window.location.href → useNavigate(createPageUrl('RestaurantReklamationen') + '?bestellung=' + id)
 - DEFAULT_RESTAURANT_ID: TODO in Config/Env auslagern
 
+## Feature: F20 – RestaurantLieferanten (Restaurant-Supplier-Overview)
+
+F20-01: Query-Optimierung & Error-Handling (KRITISCH)
+- Restaurants:
+  - Statt Restaurant.list() nur aktives Restaurant laden:
+    - Wenn impersonatedRestaurant ⇒ get(impersonatedRestaurant)
+    - Sonst via me() + Server-Filter (auth_user_id / email) oder get(DEFAULT_RESTAURANT_ID) als Fallback
+- Lieferanten:
+  - list({ status__in: ['active', 'approved'] }) statt list() + client-side Filter
+- Liefergebiete:
+  - Optional TODO: list({ plz__contains: currentRestaurant.plz }) oder Kommentar, dass später server-seitig gefiltert wird
+- Alle Queries:
+  - staleTime: 5–10 Minuten
+  - isLoading, isError, error, refetch verwenden
+  - Gemeinsame Error-UI mit Retry-Button(s)
+
+F20-02: Lookup-Performance mit Maps (KRITISCH)
+- liefergebietMap: Map<lieferantId, Liefergebiet[]>
+  - Aus liefergebiete per useMemo vorberechnen
+  - getZonenCount / getZonenForLieferant auf Map umstellen (kein filter() mehr in Render)
+- restaurantMap (falls mehrere Restaurants noch nötig sind):
+  - Map<restaurantId, Restaurant>
+  - currentRestaurant per Map statt Array.find suchen
+- Sicherstellen: Keine Array.filter / Array.find in Render-Loops für Gebiete/Lieferanten
+
+F20-03: KPIs / StatCards für Restaurant-Overview (MITTEL)
+- Single-Pass Aggregation über lieferantenInPLZ + liefergebiete + favoriten + etaMap
+- Mindestens 4 StatCards:
+  - Total Lieferanten in PLZ
+  - Favoriten (Anzahl)
+  - Lieferanten mit Koordinaten (Karte möglich)
+  - Lieferanten mit ETA < 30 Minuten (sofern ETA vorhanden)
+- Optional:
+  - Durchschnittliche Zonen pro Lieferant
+  - Lieferanten ohne Gebiete / ohne Koordinaten
+- Darstellung analog zu anderen Pages (Card-Grid über Liste + Karte)
+
+F20-04: Status-Config & Sortierung (MITTEL)
+- LIEFERANT_STATUS aus F14 / lieferantConfig importieren und nutzen:
+  - Hardcoded status === 'active' || 'approved' entfernen
+  - Status-Badges / Icons in Karten/Liste anzeigen
+- Sortierung der Lieferanten:
+  - Default: Name A–Z
+  - Optional: „Nach Entfernung/ETA“ und „Favoriten zuerst“
+  - Sortier-State (sortMode) via useState, Sortierung in useMemo über filteredLieferanten
+
+F20-05: Filter, Favoriten & Empty States (MITTEL)
+- Filter:
+  - Search wie bisher (Name, Ort)
+  - Neuer Toggle „Nur Favoriten“:
+    - filteredLieferanten zuerst nach PLZ & Status, dann optional auf Favoriten einschränken
+- Empty States:
+  - Fall 1: Keine Lieferanten in PLZ → Info „Für deine PLZ hat aktuell kein Lieferant Liefergebiete definiert“
+  - Fall 2: Such-Filter/„Nur Favoriten“ filtert alles raus → Hinweis, Filter anpassen
+  - Fall 3: Generell keine Lieferanten (System leer) → generischer Hinweis
+- Loading-State:
+  - Skeleton für KPI-Header + Karte + Liste
+
+F20-06: Architektur-/Code-Cleanup (KLEIN)
+- activeRestaurantId / currentRestaurant:
+  - Logik klar kapseln (z.B. Helper-Funktion oder kleiner Hook im selben File)
+  - DEFAULT_RESTAURANT_ID als Config/Const, nicht „magisch“
+- getZonen-/Dialog-Logik:
+  - Zonen-Dialog auf Map-basierte Daten umstellen
+  - Optional TODO-Kommentar für zukünftige Wiederverwendung (gemeinsame Zone-Component)
+- ETA:
+  - etaMap behalten (calculateETABatch), aber für Sortierung/StatCards nutzen (ETA < 30 min etc.)
 
 
 

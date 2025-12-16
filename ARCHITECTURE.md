@@ -477,7 +477,45 @@ Konfiguration:
   - ggf. kleine Presentational Components (Row, StatusBadge), aber ohne Data-Fetching
 
 
-
+## Architektur – RestaurantLieferanten (nach F20)
+Data Layer
+Queries:
+useQuery(['me'], base44.auth.me) (falls nicht schon global)
+useQuery(['restaurant', activeRestaurantId], ...getRestaurant...)
+useQuery(['lieferanten', 'restaurant'], () => Lieferant.list({ status__in: ['active', 'approved'] }), { staleTime, ... })
+useQuery(['liefergebiete', 'restaurant', activeRestaurantId], () => Liefergebiet.list(/* optional plz-Filter */), { staleTime, ... })
+useQuery(['restaurant-favoriten', activeRestaurantId], () => Favorit.filter({ restaurant_id: activeRestaurantId }), { staleTime, ... })
+Gemeinsame Loading-/Error-Behandlung für alle Queries (combined isLoading / isError).
+Derived Data
+currentRestaurant: aus „me + Restaurant“ ermittelt (Impersonation > User-Mapping > Default)
+liefergebietMap: Map<lieferantId, Gebiete[]> in useMemo
+lieferantenInPLZ: nur Lieferanten, die in PLZ-Liefergebieten vorkommen
+lieferantenMitKoordinaten: Untermenge mit Lat/Lng (für Karte, ETA)
+etaMap: Map<lieferantId, ETA> via calculateETABatch
+filteredLieferanten: Basis = lieferantenInPLZ; dann Search + Favoriten-Filter + Sortierung
+kpiStats: Objekt für StatCards (total, favoriten, mitKoordinaten, unter30Min, …)
+UI‑Struktur
+Header mit:
+Page-Title
+StatCard-Grid (4–5 Karten)
+Filterzeile: Search + Favoriten-Toggle + ggf. Sort-Select
+Hauptbereich:
+Linke Spalte: GCMap mit context="restaurant_view_suppliers" und Markers aus lieferantenMitKoordinaten inkl. ETA
+Rechte Spalte: Liste der filteredLieferanten (Card/List-Row mit Status-Badge, Favoriten-Icon, Zonen-Count, Aktionen)
+Modals:
+SupplierInfoCard (Details + Favoriten-Toggle)
+Zonen-Dialog (liest Gebiete aus liefergebietMap.get(lieferant.id))
+State
+searchText, onlyFavorites, sortMode
+selectedLieferant (für Info-Dialog)
+showZonesDialog (current Lieferant für Zonen-Dialog)
+Error/Loading/Empty
+Bei combined isLoading: Skeleton für KPIs + Karte + Liste
+Bei isError: zentrales Error-Panel mit Retry, das refetch aller relevanten Queries triggert
+Empty States unterschieden nach:
+0 lieferantenInPLZ
+0 filteredLieferanten, aber lieferantenInPLZ > 0 (Filter zu streng)
+genereller „kein Daten“-Fall
 
 
 
