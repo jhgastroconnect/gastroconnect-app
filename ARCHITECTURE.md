@@ -419,6 +419,62 @@ Konfiguration:
 - DEFAULT_LIEFERANT_ID aus zentraler Config, nicht hardcoded im Component
 - Auto-Refresh-Interval (30s) ebenfalls aus Config, falls mehrfach genutzt
 
+## Architektur – RestaurantBestellungen (nach F19)
+
+1) Data-Layer & Queries
+- Queries:
+  - useQuery(['restaurant-bestellungen', activeRestaurantId], ...Bestellung.filter)
+  - useQuery(['lieferanten', { ids: lieferantIds }], ...Lieferant.filter / list mit TODO)
+  - optional: useQuery(['restaurant', activeRestaurantId], ...Restaurant.get)
+- staleTime:
+  - Bestellungen: 2min
+  - Lieferanten: 5–10min
+- Auto-Refresh:
+  - Bestellungen: refetchInterval 30s, refetchIntervalInBackground: true
+
+2) Derived Data & Maps
+- useMemo maps:
+  - supplierMap: Map<lieferantId, Lieferant>
+  - optional restaurantMap, falls benötigt
+- useMemo Collections:
+  - offeneBestellungen, geschlosseneBestellungen (oder nur Category-Filter in einer Funktion)
+  - gefilterteBestellungen = filterBestellungen(...)
+  - uniqueLieferanten für Filter-Dropdown
+  - kpiStats für StatCards (offen, geschlossen, ausgaben, topLieferant)
+  - exportData für ExportButton
+
+3) Status & Config
+- ORDER_STATUS in orderConfig.js:
+  - Enthält: labelKey, colorClasses, icon, category ('open'/'closed')
+- RestaurantBestellungen:
+  - nutzt ORDER_STATUS für:
+    - Badge-Rendering in der Liste
+    - Status-Filter-Dropdown
+    - OFFENE_STATUS / GESCHLOSSENE_STATUS Ableitung
+- Keine lokale getStatusConfig Function mehr
+
+4) UI-Struktur
+- Layout:
+  - Header mit Title + KPIs (StatCards)
+  - Tabs (offen/geschlossen) mit Badge (Count)
+  - Filter-Bar (Datum von/bis, Lieferant-Select, Status-Select)
+  - Liste der Bestellungen:
+    - Reihen nutzen supplierMap für Namen
+    - Status-Badge aus ORDER_STATUS
+    - Button "Problem melden" pro Bestellung
+  - Export-Button (nutzt exportData)
+- Zustände:
+  - Loading: Skeleton für Header + Filter + Liste
+  - Error: ErrorCard mit Retry
+  - Empty: Tab-spezifische Messages (bereits vorhanden, nur leicht anpassen)
+
+5) Verantwortlichkeiten
+- RestaurantBestellungen.jsx:
+  - Orchestriert Queries, Maps, Filter, KPIs, Export
+  - Rendert Tabs + Filter + Liste + Modals
+- Untergeordnete Components:
+  - BestellungDetailModal: nur Anzeige/Detail-Logik
+  - ggf. kleine Presentational Components (Row, StatusBadge), aber ohne Data-Fetching
 
 
 

@@ -336,7 +336,7 @@ ToDo:
     - [ ] „Keine Treffer für Filter“ wenn Filter alles rausnimmt
   - [ ] Karten-Empty-State mit Hinweis auf Anzahl Lieferanten ohne Koordinaten
 
-## F18 – LieferantBestellungen (Lieferanten-Order-Dashboard)
+## 18 – LieferantBestellungen (Lieferanten-Order-Dashboard)
 
 Ziel:
 - Performantes, stabiles Bestell-Dashboard für Lieferanten
@@ -371,6 +371,74 @@ Funktionale Anforderungen:
   - Kombinierter Loading-State für Bestellungen + Restaurants
   - Error-State mit Retry-Button
   - Sauberer Empty-State (keine Daten vs. Filter zu streng)
+
+## F19 – RestaurantBestellungen (Restaurant-Order-Dashboard)
+
+Ziele:
+- Server-Last massiv reduzieren (Auto-Refresh + Overfetching fixen)
+- Performance & Lookups optimieren
+- Restaurant-Dashboard mit KPIs ergänzen
+- Status-Handling an ORDER_STATUS (F12/F18) angleichen
+
+Umfang (MVP F19):
+
+1) Query-Optimierung
+- Bestellungen:
+  - Weiterhin: filter({ restaurant: activeRestaurantId })
+  - refetchInterval von 3000 ms → 30000 ms (30s)
+  - staleTime: 2 * 60 * 1000
+  - refetchOnWindowFocus: true, aber nutzt staleTime
+- Lieferanten:
+  - Statt list(): nur benötigte laden (id__in aus Bestellungen)
+  - Falls id__in aktuell nicht verfügbar: TODO-Kommentar + vorerst list() mit staleTime 5–10min
+- Restaurants:
+  - Statt list(): get(activeRestaurantId) oder useContext für aktives Restaurant
+  - Query-Key alignen mit anderen Pages (['restaurants'] / ['restaurant', activeRestaurantId])
+
+2) Lookup-Performance (Maps)
+- useMemo:
+  - supplierMap = new Map(lieferanten.map(l => [l.id, l]))
+  - optional: restaurantMap, falls mehrere Restaurants relevant sind
+- Alle Array.find durch Map-Lookups ersetzen:
+  - getLieferant / getLieferantName / getLieferantEmail → supplierMap.get(id)
+- uniqueLieferanten für Filter aus Map ableiten (kein filter + includes mehr)
+
+3) KPIs / StatCards
+- Neue StatCards oben einführen (analog F12/F18):
+  - Offene Bestellungen (gesendet + bestätigt + in_vorbereitung + unterwegs + verspaetet)
+  - Geschlossene Bestellungen (geliefert + storniert)
+  - Gesamtausgaben (Summe aller nicht-stornierten Bestellungen)
+  - Top-Lieferant (Name + Anzahl Bestellungen)
+- Berechnung in einem useMemo über bestellungen
+
+4) Status-Config zentralisieren
+- ORDER_STATUS aus gemeinsamer orderConfig.js importieren (wie bei F12/F18)
+- OFFENE_STATUS / GESCHLOSSENE_STATUS aus ORDER_STATUS ableiten (category: 'open' | 'closed')
+- Inline getStatusConfig entfernen, Badge-Styles über ORDER_STATUS[status] beziehen
+- Optional Icons (z.B. Package, Truck, CheckCircle, XCircle) wie F12/F18
+
+5) Filter- & Tab-Logik
+- Tab-Filter (offen/geschlossen) + Detail-Filter (Datum, Lieferant, Status) in eine zentrale Filter-Funktion packen:
+  - filterBestellungen({ bestellungen, activeTab, filters, supplierMap })
+- gefilterteBestellungen per useMemo, basierend auf dieser Funktion
+- Sortierung (neueste zuerst) in derselben Pipeline belassen
+
+6) Error- & Loading-Handling
+- useQuery für Bestellungen + Lieferanten + Restaurant:
+  - isError, error, refetch verwenden
+- Error-UI:
+  - Kompakte Card mit Fehlertext + Retry-Button (refetch())
+- Loading:
+  - Bestehende Skeletons behalten, aber für alle relevanten Daten denken (nicht nur Bestellungen)
+
+7) UX-Polish (MVP)
+- Empty States beibehalten (sind schon sehr gut), nur Icons ggf. Tab-spezifisch machen:
+  - Offen: Package/Clock
+  - Geschlossen: CheckCircle
+- Navigation für "Problem melden":
+  - window.location.href → useNavigate(createPageUrl('RestaurantReklamationen') + '?bestellung=' + id)
+- DEFAULT_RESTAURANT_ID: TODO in Config/Env auslagern
+
 
 
 

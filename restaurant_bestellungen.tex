@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, Eye, FileText, AlertTriangle } from 'lucide-react';
+import { AlertCircle, Eye, FileText, AlertTriangle, Package, CheckCircle2, XCircle, TrendingUp, Clock } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import StatCard from '@/components/dashboard/StatCard';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { createPageUrl } from '@/utils';
@@ -17,27 +19,200 @@ import { CSV_COLUMNS } from '@/components/utils/csvExport';
 import { useTranslation } from '@/components/utils/translations';
 import EntityNameLink from '@/components/profile/EntityNameLink';
 
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+// TODO F19: In Environment Variable auslagern
 const DEFAULT_RESTAURANT_ID = '692b178b8af1f276d86a6a78';
+
+/**
+ * Order Status Configuration (aligned with F12 AdminBestellungen & F18 LieferantBestellungen)
+ * 
+ * TODO F19: Später aus /src/config/orderConfig.js importieren
+ * Kategorien: 'open' (offene) vs. 'closed' (geschlossene) Bestellungen
+ */
+const ORDER_STATUS = {
+  gesendet: { 
+    labelKey: 'offen',  // Restaurant-spezifisch: "gesendet" wird als "offen" angezeigt
+    category: 'open',
+    class: 'bg-orange-100 text-orange-800 border-orange-200',
+    icon: Package 
+  },
+  bestätigt: { 
+    labelKey: 'bestaetigt',
+    category: 'open',
+    class: 'bg-blue-100 text-blue-800 border-blue-200',
+    icon: Clock 
+  },
+  in_vorbereitung: { 
+    labelKey: 'inVorbereitungLabel',
+    category: 'open',
+    class: 'bg-purple-100 text-purple-800 border-purple-200',
+    icon: Package 
+  },
+  unterwegs: { 
+    labelKey: 'unterwegs',
+    category: 'open',
+    class: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+    icon: Package 
+  },
+  verspaetet: { 
+    labelKey: 'verspaetet',
+    category: 'open',
+    class: 'bg-amber-100 text-amber-800 border-amber-200',
+    icon: AlertTriangle 
+  },
+  geliefert: { 
+    labelKey: 'geliefert',
+    category: 'closed',
+    class: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    icon: CheckCircle2 
+  },
+  storniert: { 
+    labelKey: 'storniert',
+    category: 'closed',
+    class: 'bg-red-100 text-red-800 border-red-200',
+    icon: XCircle 
+  }
+};
+
+// Status-Arrays aus ORDER_STATUS ableiten
+const OFFENE_STATUS = Object.keys(ORDER_STATUS).filter(
+  key => ORDER_STATUS[key].category === 'open'
+);
+const GESCHLOSSENE_STATUS = Object.keys(ORDER_STATUS).filter(
+  key => ORDER_STATUS[key].category === 'closed'
+);
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Berechnet KPIs aus Bestellungen in einem einzigen Durchlauf
+ * 
+ * @param {Array} bestellungen - Alle Bestellungen
+ * @param {Map} supplierMap - Map für Lieferanten-Lookups
+ * @returns {Object} Stats-Objekt mit KPIs
+ */
+function calculateStats(bestellungen, supplierMap) {
+  const stats = {
+    total: bestellungen.length,
+    offen: 0,
+    geschlossen: 0,
+    totalAusgaben: 0,
+    topLieferant: { name: '-', count: 0 }
+  };
+
+  const supplierCounts = new Map();
+
+  bestellungen.forEach(b => {
+    // Status-Kategorien
+    if (OFFENE_STATUS.includes(b.status)) {
+      stats.offen++;
+    } else if (GESCHLOSSENE_STATUS.includes(b.status)) {
+      stats.geschlossen++;
+    }
+
+    // Ausgaben (nur nicht-stornierte)
+    if (b.status !== 'storniert' && b.gesamtbetrag) {
+      stats.totalAusgaben += b.gesamtbetrag;
+    }
+
+    // Lieferanten-Zählung
+    if (b.lieferant) {
+      const count = (supplierCounts.get(b.lieferant) || 0) + 1;
+      supplierCounts.set(b.lieferant, count);
+    }
+  });
+
+  // Top-Lieferant ermitteln
+  let maxCount = 0;
+  let topSupplierId = null;
+  supplierCounts.forEach((count, supplierId) => {
+    if (count > maxCount) {
+      maxCount = count;
+      topSupplierId = supplierId;
+    }
+  });
+
+  if (topSupplierId) {
+    const supplier = supplierMap.get(topSupplierId);
+    stats.topLieferant = {
+      name: supplier?.name || 'Unbekannt',
+      count: maxCount
+    };
+  }
+
+  return stats;
+}
+
+/**
+ * Filtert Bestellungen basierend auf Tab und Filtern
+ * 
+ * @param {Array} bestellungen - Alle Bestellungen
+ * @param {string} activeTab - 'offen' | 'geschlossen'
+ * @param {Object} filters - { vonDatum, bisDatum, lieferantFilter, statusFilter }
+ * @returns {Array} Gefilterte und sortierte Bestellungen
+ */
+function filterBestellungen({
+  bestellungen,
+  activeTab,
+  vonDatum,
+  bisDatum,
+  lieferantFilter,
+  statusFilter
+}) {
+  return bestellungen.filter(b => {
+    // Tab-Filter (offen vs. geschlossen)
+    const statusCategory = ORDER_STATUS[b.status]?.category;
+    if (activeTab === 'offen' && statusCategory !== 'open') {
+      return false;
+    }
+    if (activeTab === 'geschlossen' && statusCategory !== 'closed') {
+      return false;
+    }
+
+    // Datum von
+    if (vonDatum) {
+      const bestellDatum = new Date(b.bestelldatum);
+      const von = new Date(vonDatum);
+      if (bestellDatum < von) return false;
+    }
+
+    // Datum bis
+    if (bisDatum) {
+      const bestellDatum = new Date(b.bestelldatum);
+      const bis = new Date(bisDatum);
+      bis.setHours(23, 59, 59, 999);
+      if (bestellDatum > bis) return false;
+    }
+
+    // Lieferant
+    if (lieferantFilter !== 'alle' && b.lieferant !== lieferantFilter) {
+      return false;
+    }
+
+    // Status
+    if (statusFilter !== 'alle' && b.status !== statusFilter) {
+      return false;
+    }
+
+    return true;
+  }).sort((a, b) => new Date(b.bestelldatum) - new Date(a.bestelldatum));
+}
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
 
 export default function RestaurantBestellungen() {
   const { impersonatedRestaurant } = useRole();
   const activeRestaurantId = impersonatedRestaurant || DEFAULT_RESTAURANT_ID;
   const { t } = useTranslation();
-  
-  const getStatusConfig = (status) => {
-    const configs = {
-      'gesendet': { labelKey: 'offen', className: 'bg-orange-100 text-orange-800 border-orange-200' },
-      'bestätigt': { labelKey: 'bestaetigt', className: 'bg-blue-100 text-blue-800 border-blue-200' },
-      'in_vorbereitung': { labelKey: 'inVorbereitungLabel', className: 'bg-purple-100 text-purple-800 border-purple-200' },
-      'unterwegs': { labelKey: 'unterwegs', className: 'bg-cyan-100 text-cyan-800 border-cyan-200' },
-      'geliefert': { labelKey: 'geliefert', className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
-      'storniert': { labelKey: 'storniert', className: 'bg-red-100 text-red-800 border-red-200' },
-      'verspaetet': { labelKey: 'verspaetet', className: 'bg-amber-100 text-amber-800 border-amber-200' }
-    };
-    const config = configs[status] || configs['gesendet'];
-    return { label: t(config.labelKey), className: config.className };
-  };
 
+  // State
   const [activeTab, setActiveTab] = useState('offen');
   const [vonDatum, setVonDatum] = useState('');
   const [bisDatum, setBisDatum] = useState('');
@@ -45,29 +220,96 @@ export default function RestaurantBestellungen() {
   const [statusFilter, setStatusFilter] = useState('alle');
   const [selectedBestellung, setSelectedBestellung] = useState(null);
 
-  // Offene Status: alles außer geliefert und storniert
-  const OFFENE_STATUS = ['gesendet', 'bestätigt', 'in_vorbereitung', 'unterwegs', 'verspaetet'];
-  const GESCHLOSSENE_STATUS = ['geliefert', 'storniert'];
+  // ============================================================================
+  // QUERIES
+  // ============================================================================
 
-  const { data: bestellungen = [], isLoading } = useQuery({
+  /**
+   * Bestellungen Query mit optimiertem Refresh-Interval
+   * 
+   * Änderung zu vorher:
+   * - refetchInterval: 30000 (30 Sekunden statt 3 Sekunden)
+   * - staleTime: 2min (verhindert unnötige Refetches bei Focus)
+   * - 90% weniger Server-Last!
+   */
+  const { 
+    data: bestellungen = [], 
+    isLoading: bestellungenLoading,
+    isError: bestellungenError,
+    error: bestellungenErrorMsg,
+    refetch: refetchBestellungen
+  } = useQuery({
     queryKey: ['restaurant-bestellungen', activeRestaurantId],
     queryFn: () => base44.entities.Bestellung.filter({ restaurant: activeRestaurantId }),
-    refetchInterval: 3000,
+    staleTime: 2 * 60 * 1000, // 2 Minuten
+    refetchInterval: 30000, // 30 Sekunden (statt 3!)
     refetchIntervalInBackground: true
   });
 
-  const { data: lieferanten = [] } = useQuery({
+  /**
+   * Lieferanten Query - nur benötigte laden
+   * 
+   * TODO F19: Später optimieren mit id__in basierend auf bestellungen
+   * Aktuell: list() mit staleTime (deutlich besser als vorher)
+   */
+  const { 
+    data: allLieferanten = [],
+    isLoading: lieferantenLoading,
+    isError: lieferantenError,
+    refetch: refetchLieferanten
+  } = useQuery({
     queryKey: ['lieferanten'],
-    queryFn: () => base44.entities.Lieferant.list()
+    queryFn: async () => {
+      // TODO F19: Optimieren mit id__in wenn möglich
+      // const lieferantIds = [...new Set(bestellungen.map(b => b.lieferant))];
+      // return base44.entities.Lieferant.filter({ id__in: lieferantIds });
+      return base44.entities.Lieferant.list();
+    },
+    staleTime: 5 * 60 * 1000 // 5 Minuten
   });
 
-  const { data: restaurants = [] } = useQuery({
-    queryKey: ['restaurants'],
-    queryFn: () => base44.entities.Restaurant.list()
+  /**
+   * Restaurant Query - nur aktives Restaurant
+   * 
+   * TODO F19: Optimieren mit get() statt list()
+   */
+  const { 
+    data: allRestaurants = [],
+    isLoading: restaurantsLoading 
+  } = useQuery({
+    queryKey: ['restaurants', activeRestaurantId],
+    queryFn: async () => {
+      // TODO F19: Optimieren mit get() statt list()
+      // return [await base44.entities.Restaurant.get(activeRestaurantId)];
+      return base44.entities.Restaurant.list();
+    },
+    enabled: !!activeRestaurantId,
+    staleTime: 10 * 60 * 1000 // 10 Minuten (Restaurant-Daten ändern sich selten)
   });
 
+  // ============================================================================
+  // MAPS für O(1) Lookups
+  // ============================================================================
+
+  /**
+   * Lieferanten Map: ID → Lieferant
+   * Ersetzt Array.find in Render-Loop (O(n) → O(1))
+   */
+  const supplierMap = useMemo(() => {
+    return new Map(allLieferanten.map(l => [l.id, l]));
+  }, [allLieferanten]);
+
+  // ============================================================================
+  // COMPUTED DATA
+  // ============================================================================
+
+  const activeRestaurant = useMemo(() => {
+    return allRestaurants.find(r => r.id === activeRestaurantId);
+  }, [allRestaurants, activeRestaurantId]);
+
+  // Helper Functions mit Map-Lookup (O(1))
   const getLieferant = (lieferantId) => {
-    return lieferanten.find(l => l.id === lieferantId);
+    return supplierMap.get(lieferantId);
   };
 
   const getLieferantName = (lieferantId) => {
@@ -78,69 +320,77 @@ export default function RestaurantBestellungen() {
     return getLieferant(lieferantId)?.email || null;
   };
 
-  const activeRestaurant = restaurants.find(r => r.id === activeRestaurantId);
+  // Gefilterte Bestellungen (kombiniert Tab + Detail-Filter)
+  const gefilterteBestellungen = useMemo(() => {
+    return filterBestellungen({
+      bestellungen,
+      activeTab,
+      vonDatum,
+      bisDatum,
+      lieferantFilter,
+      statusFilter
+    });
+  }, [bestellungen, activeTab, vonDatum, bisDatum, lieferantFilter, statusFilter]);
 
-  // Bestellungen nach Tab filtern
+  // Tab-spezifische Counts (für Badges)
   const offeneBestellungen = useMemo(() => 
     bestellungen.filter(b => OFFENE_STATUS.includes(b.status)), 
     [bestellungen]
   );
-  
+
   const geschlosseneBestellungen = useMemo(() => 
     bestellungen.filter(b => GESCHLOSSENE_STATUS.includes(b.status)), 
     [bestellungen]
   );
 
-  // Basis-Bestellungen je nach Tab
+  // Basis-Bestellungen für Empty State Check
   const basisBestellungen = activeTab === 'offen' ? offeneBestellungen : geschlosseneBestellungen;
 
-  // Gefilterte Bestellungen
-  const gefilterteBestellungen = useMemo(() => {
-    return basisBestellungen.filter(b => {
-      // Zeitraum von
-      if (vonDatum) {
-        const bestellDatum = new Date(b.bestelldatum);
-        const von = new Date(vonDatum);
-        if (bestellDatum < von) return false;
-      }
+  // KPIs - Single Pass über alle Bestellungen
+  const stats = useMemo(() => {
+    return calculateStats(bestellungen, supplierMap);
+  }, [bestellungen, supplierMap]);
 
-      // Zeitraum bis
-      if (bisDatum) {
-        const bestellDatum = new Date(b.bestelldatum);
-        const bis = new Date(bisDatum);
-        bis.setHours(23, 59, 59, 999);
-        if (bestellDatum > bis) return false;
-      }
+  // Unique Lieferanten für Filter (nur die in Bestellungen vorkommen)
+  const uniqueLieferanten = useMemo(() => {
+    const lieferantIds = [...new Set(bestellungen.map(b => b.lieferant))];
+    return lieferantIds
+      .map(id => supplierMap.get(id))
+      .filter(Boolean)
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [bestellungen, supplierMap]);
 
-      // Lieferant
-      if (lieferantFilter !== 'alle' && b.lieferant !== lieferantFilter) {
-        return false;
-      }
-
-      // Status
-      if (statusFilter !== 'alle' && b.status !== statusFilter) {
-        return false;
-      }
-
-      return true;
-    }).sort((a, b) => new Date(b.bestelldatum) - new Date(a.bestelldatum));
-  }, [basisBestellungen, vonDatum, bisDatum, lieferantFilter, statusFilter]);
-
-  // Export-Daten vorbereiten
+  // Export-Daten (nur bei Bedarf berechnet)
   const exportData = useMemo(() => {
     return gefilterteBestellungen.map(b => ({
       ...b,
       lieferantName: getLieferantName(b.lieferant),
       restaurantName: activeRestaurant?.name || '',
-      bestelldatum: b.bestelldatum ? format(new Date(b.bestelldatum), 'dd.MM.yyyy HH:mm', { locale: de }) : '-',
+      bestelldatum: b.bestelldatum 
+        ? format(new Date(b.bestelldatum), 'dd.MM.yyyy HH:mm', { locale: de }) 
+        : '-',
     }));
   }, [gefilterteBestellungen, activeRestaurant]);
+
+  // ============================================================================
+  // LOADING & ERROR STATES
+  // ============================================================================
+
+  const isLoading = bestellungenLoading || lieferantenLoading || restaurantsLoading;
+  const hasError = bestellungenError || lieferantenError;
 
   if (isLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-24 w-full" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </div>
+        <Skeleton className="h-16" />
+        <Skeleton className="h-24" />
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           {[1, 2, 3, 4, 5].map(i => (
             <Skeleton key={i} className="h-12 mb-2" />
@@ -149,6 +399,39 @@ export default function RestaurantBestellungen() {
       </div>
     );
   }
+
+  if (hasError) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">{t('meineBestellungenTitle')}</h1>
+        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-12">
+              <XCircle className="h-16 w-16 text-red-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">Fehler beim Laden</h3>
+              <p className="text-slate-500 max-w-md mx-auto mb-4">
+                Ihre Bestellungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.
+              </p>
+              <div className="flex gap-2 justify-center">
+                <Button onClick={() => refetchBestellungen()} variant="outline">
+                  Bestellungen erneut laden
+                </Button>
+                <Button onClick={() => refetchLieferanten()} variant="outline">
+                  Lieferanten erneut laden
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
 
   return (
     <div className="space-y-6">
@@ -183,8 +466,40 @@ export default function RestaurantBestellungen() {
         </Tabs>
       </div>
 
+      {/* KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Offene Bestellungen"
+          value={stats.offen}
+          icon={Package}
+          color="orange"
+          subtitle="In Bearbeitung"
+        />
+        <StatCard
+          title="Geschlossene Bestellungen"
+          value={stats.geschlossen}
+          icon={CheckCircle2}
+          color="emerald"
+          subtitle="Geliefert + Storniert"
+        />
+        <StatCard
+          title="Gesamtausgaben"
+          value={`€${stats.totalAusgaben.toFixed(2)}`}
+          icon={TrendingUp}
+          color="blue"
+          subtitle="Alle Bestellungen"
+        />
+        <StatCard
+          title="Top-Lieferant"
+          value={stats.topLieferant.name}
+          icon={Package}
+          color="slate"
+          subtitle={`${stats.topLieferant.count} Bestellungen`}
+        />
+      </div>
+
       {/* Export Button */}
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end">
         <ExportButton
           data={exportData}
           columns={CSV_COLUMNS.bestellungen}
@@ -202,15 +517,21 @@ export default function RestaurantBestellungen() {
         setLieferant={setLieferantFilter}
         status={statusFilter}
         setStatus={setStatusFilter}
-        lieferanten={lieferanten}
+        lieferanten={uniqueLieferanten}
       />
 
       {/* Tabelle */}
       {gefilterteBestellungen.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
-          <AlertCircle className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+          {activeTab === 'offen' ? (
+            <Package className="h-12 w-12 text-orange-300 mx-auto mb-4" />
+          ) : (
+            <CheckCircle2 className="h-12 w-12 text-emerald-300 mx-auto mb-4" />
+          )}
           <h3 className="text-lg font-medium text-slate-900 mb-2">
-            {activeTab === 'offen' ? t('keineOffenenBestellungen') : t('keineGeschlossenenBestellungen')}
+            {activeTab === 'offen' 
+              ? t('keineOffenenBestellungen') 
+              : t('keineGeschlossenenBestellungen')}
           </h3>
           <p className="text-slate-500">
             {basisBestellungen.length > 0 
@@ -226,17 +547,29 @@ export default function RestaurantBestellungen() {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('datum')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('lieferant')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('status')}</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">{t('betrag')}</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">{t('lieferschein')}</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">{t('aktion')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    {t('datum')}
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    {t('lieferant')}
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    {t('status')}
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    {t('betrag')}
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    {t('lieferschein')}
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    {t('aktion')}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {gefilterteBestellungen.map(bestellung => {
-                  const statusConfig = getStatusConfig(bestellung.status);
+                  const statusConfig = ORDER_STATUS[bestellung.status] || ORDER_STATUS['gesendet'];
                   const datum = bestellung.bestelldatum 
                     ? format(new Date(bestellung.bestelldatum), 'dd.MM.yyyy HH:mm', { locale: de })
                     : '-';
@@ -258,15 +591,20 @@ export default function RestaurantBestellungen() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1 items-start">
-                          <Badge variant="outline" className={`${statusConfig.className} whitespace-nowrap`}>
-                            {statusConfig.label}
+                          <Badge variant="outline" className={`${statusConfig.class} whitespace-nowrap`}>
+                            {t(statusConfig.labelKey)}
                           </Badge>
                           {bestellung.status === 'verspaetet' && bestellung.verspaetung_grund && (
-                            <span className="text-xs text-amber-600 max-w-[150px] truncate" title={bestellung.verspaetung_grund}>
+                            <span 
+                              className="text-xs text-amber-600 max-w-[150px] truncate" 
+                              title={bestellung.verspaetung_grund}
+                            >
                               ⚠️ {bestellung.verspaetung_grund}
                             </span>
                           )}
-                          {bestellung.voraussichtliche_lieferung && bestellung.status !== 'geliefert' && bestellung.status !== 'storniert' && (
+                          {bestellung.voraussichtliche_lieferung && 
+                           bestellung.status !== 'geliefert' && 
+                           bestellung.status !== 'storniert' && (
                             <span className="text-xs text-slate-500">
                               ETA: {bestellung.voraussichtliche_lieferung}
                             </span>
@@ -303,7 +641,11 @@ export default function RestaurantBestellungen() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => window.location.href = createPageUrl('RestaurantReklamationen') + '?bestellung=' + bestellung.id}
+                            onClick={() => {
+                              // TODO F19: useNavigate statt window.location.href
+                              window.location.href = createPageUrl('RestaurantReklamationen') + 
+                                '?bestellung=' + bestellung.id;
+                            }}
                             className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                           >
                             <AlertTriangle className="h-4 w-4 mr-1" />
@@ -321,9 +663,11 @@ export default function RestaurantBestellungen() {
       )}
 
       {/* Anzahl Ergebnisse */}
-      {gefilterteBestellungen.length > 0 && gefilterteBestellungen.length !== basisBestellungen.length && (
+      {gefilterteBestellungen.length > 0 && 
+       gefilterteBestellungen.length !== basisBestellungen.length && (
         <p className="text-sm text-slate-500 text-center">
-          {gefilterteBestellungen.length} {t('von')} {basisBestellungen.length} {activeTab === 'offen' ? t('offenenBestellungen') : t('geschlossenenBestellungen')}
+          {gefilterteBestellungen.length} {t('von')} {basisBestellungen.length}{' '}
+          {activeTab === 'offen' ? t('offenenBestellungen') : t('geschlossenenBestellungen')}
         </p>
       )}
 
