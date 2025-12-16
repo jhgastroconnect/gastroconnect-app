@@ -266,6 +266,43 @@ Probleme:
 - Kein spezieller Empty State bei 0 Restaurants.
 - Semantik von `approved` vs. `active` nicht beschrieben (Business-Logik TODO).
 
+## Admin Lieferanten-Gebiete
+Datei: AdminLieferantenGebiete.jsx
+
+Zweck:
+- Admin-Übersicht der Liefergebiete pro Lieferant.
+- Kombination aus Liste (Lieferanten + Zonen) und Karte (Marker).
+- Verwaltung von Liefergebieten über Modal (LieferzoneDialog): Anlegen, Bearbeiten, Löschen.
+
+Datenquellen:
+- Lieferanten: `base44.entities.Lieferant.list()`
+  - aktuell client-seitig gefiltert auf `status === 'active' || 'approved'`
+  - Query-Key: `['lieferanten-admin']`, ohne `staleTime`, ohne Error-Handling
+- Liefergebiete: `base44.entities.Liefergebiet.list()`
+  - lädt alle Gebiete (keine Filter)
+  - Query-Key: `['liefergebiete-admin']`, ohne `staleTime`, ohne Error-Handling
+
+Logik:
+- Textsuche (`searchText`) auf Lieferanten:
+  - Name, Ort, PLZ (multi-field), via `useMemo` gefiltert.
+- Zonen je Lieferant:
+  - `getZonenCount(lieferantId)` und `getZonenForLieferant(lieferantId)` aktuell via `Array.filter` direkt auf `liefergebiete` (O(n×m)).
+- Map:
+  - `lieferantenMitKoordinaten` gefiltert, `mapMarkers` via `useMemo` gebaut (Marker + Popup-Infos).
+- UI:
+  - Liste aller aktiven/freigegebenen Lieferanten inkl. Anzahl Zonen.
+  - Button „Gebiete verwalten“ → Modal zeigt Zonen-Tabelle + „Neu“-Button.
+
+Probleme:
+- Client-side Status-Filter für Lieferanten statt server-seitig.
+- Keine `staleTime`, kein Loading-/Error-Handling.
+- Query-Keys inkonsistent zu anderen Admin-Pages.
+- Performance: O(n×m) durch mehrfaches `filter` in Render/Modal.
+- Mutations-Mix: Create/Update inline `async`, Delete mit `useMutation` + `window.confirm`.
+- Keine KPIs/StatCards (z.B. Lieferanten mit/ohne Gebiete, Anzahl Gebiete).
+- Kein sauberer Empty-State für Liste (nur Modal hat „keine Gebiete“).
+
+
 
 
 

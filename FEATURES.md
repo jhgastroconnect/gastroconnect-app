@@ -258,6 +258,38 @@ ToDo:
 - Code-Organisation:
   - `FIELDS`-Array und `RESTAURANT_STATUS` im oberen Config-Bereich der Datei gruppieren.
 
+## F16 – Admin Lieferanten-Gebiete Cleanup
+
+Ziel:
+- Admin-Ansicht für Liefergebiete technisch auf Niveau F11–F15 bringen (Performance, Loading/Error, Konsistenz).
+- O(n×m)-Lookups eliminieren, server-seitiges Filtering, klare KPIs.
+
+ToDo:
+- Queries:
+  - Query-Keys vereinheitlichen: `['lieferanten']`, `['liefergebiete']`.
+  - Lieferanten server-seitig filtern: `status__in: ['active', 'approved']` (kein client-side Filter).
+  - Für beide Queries `staleTime` (5–10 Min), `isLoading`, `isError`, `error`, `refetch`.
+  - Loading-Skeleton + Error-UI mit Retry-Button.
+
+- Lookups & Filter:
+  - `liefergebietMap` via `useMemo` bauen (Map: lieferantId → Gebiete[]).
+  - `getZonenCount` / `getZonenForLieferant` auf Map-Lookups (O(1)) umstellen.
+  - Lieferanten-Filter in Helper-Funktion `filterLieferanten` auslagern, `useMemo` behalten.
+
+- Mutations:
+  - `createZone`, `updateZone`, `deleteZone` jeweils als `useMutation` definieren.
+  - Konsistentes Error-Handling, `invalidateQueries(['liefergebiete'])`, Toasts.
+  - `window.confirm` durch `AlertDialog` ersetzen (wie F14/F15).
+
+- KPIs & Empty States:
+  - StatCards: Gesamt Lieferanten, Lieferanten mit Gebieten, ohne Gebiete, Gesamt-Gebiete.
+  - Single-Pass-Berechnung auf Basis von `lieferanten` + `liefergebietMap`.
+  - Empty-State für Liste: unterscheiden „keine Daten“ vs. „Filter liefert 0 Ergebnisse“.
+
+- Vorbereitung:
+  - Hardcoded Status-Filter dokumentieren / später an `LIEFERANT_STATUS` (F14) andocken.
+  - Basis-Validierung für Zonen (PLZ, Mindestbestellwert ≥ 0, Lieferkosten ≥ 0) vorbereiten.
+
 
 
 
