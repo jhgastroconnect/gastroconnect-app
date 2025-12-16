@@ -290,6 +290,88 @@ ToDo:
   - Hardcoded Status-Filter dokumentieren / später an `LIEFERANT_STATUS` (F14) andocken.
   - Basis-Validierung für Zonen (PLZ, Mindestbestellwert ≥ 0, Lieferkosten ≥ 0) vorbereiten.
 
+## F17 – AdminLiefergebiete (Admin-Übersicht Liefergebiete)
+
+- [ ] F17.1 – Queries stabilisieren
+  - [ ] `liefergebiete` über `base44.entities.Liefergebiet.list()` mit `staleTime` (5–10 min)
+  - [ ] `lieferanten` über `base44.entities.Lieferant.filter({ status__in: ['active', 'approved'] })` mit `staleTime`
+  - [ ] `isLoading`, `isError`, `error`, `refetch` für beide Queries nutzen
+  - [ ] Gemeinsame Error-UI mit Retry-Button
+
+- [ ] F17.2 – Lookup-Performance
+  - [ ] `liefergebietMap` als `useMemo`: `Map<lieferantId, Liefergebiet[]>`
+  - [ ] `groupedByLieferant` auf Basis der Map: `{ lieferant, gebiete[] }[]`
+  - [ ] Alle direkten `filter(lg => lg.lieferant === l.id)` durch Map-Lookups ersetzen
+
+- [ ] F17.3 – KPIs / StatCards
+  - [ ] 4 StatCards einführen:
+    - [ ] Gesamt Lieferanten (aktiv/approved)
+    - [ ] Lieferanten mit Gebieten
+    - [ ] Lieferanten ohne Gebiete
+    - [ ] Gesamt Liefergebiete
+  - [ ] KPIs in einem einzigen Pass über `groupedByLieferant` / `liefergebiete` berechnen
+
+- [ ] F17.4 – Suche & Filter
+  - [ ] Textsuche über Lieferantenname (optional PLZ/Ort) implementieren
+  - [ ] Optional: Toggle „nur Lieferanten mit Gebieten“
+  - [ ] Filter-Logik in Helper (`filterLieferanten`) auslagern, per `useMemo` anwenden
+
+- [ ] F17.5 – Sortierung
+  - [ ] Sort-Key-State: `name` | `zones`
+  - [ ] Sort-Richtung: `asc` | `desc`
+  - [ ] Sortierung auf gefilterte Gruppen anwenden:
+    - [ ] Name A–Z / Z–A
+    - [ ] Anzahl Gebiete auf/absteigend
+
+- [ ] F17.6 – Config & Konsistenz
+  - [ ] Status-Checks über `LIEFERANT_STATUS` aus `lieferantConfig` abbilden (keine hardcoded Status-Strings)
+  - [ ] Leaflet-/Map-Icon-Konfiguration in eigenes Config-File auslagern und hier nur importieren
+  - [ ] Farben/Labels an F14/F16 (AdminLieferanten / AdminLieferantenGebiete) angleichen
+
+- [ ] F17.7 – UX-Stati
+  - [ ] Loading-Skeleton für: KPI-Zeile, Karte, Liste
+  - [ ] Error-View mit kurzer Meldung + Retry
+  - [ ] Empty-State:
+    - [ ] „Keine Lieferanten“ wenn System leer
+    - [ ] „Keine Treffer für Filter“ wenn Filter alles rausnimmt
+  - [ ] Karten-Empty-State mit Hinweis auf Anzahl Lieferanten ohne Koordinaten
+
+## F18 – LieferantBestellungen (Lieferanten-Order-Dashboard)
+
+Ziel:
+- Performantes, stabiles Bestell-Dashboard für Lieferanten
+- Server-Last drastisch reduzieren, trotzdem „nah Echtzeit“
+- Gleiche Qualitäts-Standards wie F12 (AdminBestellungen)
+
+Scope:
+- Nur Lieferanten-View der Bestellungen (Bestellung.filter({ lieferant: activeLieferantId }))
+- Batch-Actions behalten (Status-Updates auf mehrere Orders)
+- Favoriten-Logik für Restaurants behalten
+- Kein Redesign vom UI-Layout, nur Performance/Struktur/Robustheit
+
+Funktionale Anforderungen:
+- Filter:
+  - Status-Filter (alle relevanten Order-Status, wie in F12)
+  - Restaurant-Filter (nur tatsächlich vorkommende Restaurants)
+  - Datumsbereich (von/bis)
+  - Textsuche (Bestellnummer + Restaurantname)
+- Liste:
+  - Sortierung absteigend nach bestelldatum (neueste zuerst)
+  - Checkboxen für Multi-Select
+  - Status-Badges konsistent mit ORDER_STATUS (F12)
+- Batch-Actions:
+  - Bestehende ORDER_BATCH_ACTIONS weiter nutzen (confirm, prepare, ship, …)
+  - Batch-Update über Mutation, Query-Invalidation nach Success
+- KPIs:
+  - Offene Bestellungen (gesendet + bestätigt)
+  - In Bearbeitung (in_vorbereitung + unterwegs)
+  - Geliefert (in Zeitraum)
+  - Gesamtumsatz (gefilterte Bestellungen)
+- Fehler- und Loading-Handling:
+  - Kombinierter Loading-State für Bestellungen + Restaurants
+  - Error-State mit Retry-Button
+  - Sauberer Empty-State (keine Daten vs. Filter zu streng)
+
 
 
 

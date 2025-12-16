@@ -302,6 +302,124 @@ Probleme:
 - Keine KPIs/StatCards (z.B. Lieferanten mit/ohne Gebiete, Anzahl Gebiete).
 - Kein sauberer Empty-State für Liste (nur Modal hat „keine Gebiete“).
 
+## Admin Liefergebiete
+
+AdminLiefergebiete.jsx
+│
+├── useQuery(['lieferanten'], list({status__in:['active','approved']}))
+│       → liefert aktive Lieferanten
+│
+├── useQuery(['liefergebiete'], list())
+│       → liefert alle Gebiete
+│
+├── useMemo: liefergebietMap (O(1) Lookup)
+│       LieferantID → [Gebiete]
+│
+├── useMemo: groupedByLieferant
+│       Für jede Lieferant:
+│           { lieferant, gebiete: liefergebietMap.get(id) }
+│
+└── UI:
+        ├── StatCards (4 KPIs)
+        ├── Map (Leaflet)
+        ├── Lieferanten-Liste
+        └── LiefergebietEditor (CRUD pro Lieferant)
+
+        
+
+## Architektur – LieferantBestellungen (F18)
+
+Daten & Queries:
+- activeLieferantId:
+  - Ermittlung wie in anderen Lieferanten-Pages (impersonation → user-mapping → DEFAULT_LIEFERANT_ID aus Config)
+- Query 1: Lieferanten-Bestellungen
+  - key: ['lieferant-bestellungen', activeLieferantId]
+  - fn: Bestellung.filter({ lieferant: activeLieferantId })
+  - Optionen:
+    - staleTime: 2 * 60 * 1000
+    - refetchInterval: 30000 (30s, nur wenn Tab aktiv)
+    - refetchOnWindowFocus: true (nutzt staleTime)
+  - Rückgabe: bestellungen, isLoading, isError, error, refetch
+- Query 2: Restaurants für diese Bestellungen
+  - restaurantIds = unique(bestellungen.map(b => b.restaurant))
+  - Wenn restaurantIds leer: Query deaktivieren
+  - key: ['restaurants', { ids: restaurantIds }]
+  - fn: Restaurant.filter({ id__in: restaurantIds })
+  - staleTime: 5 * 60 * 1000
+- Optional: Lieferant-Details
+  - Wenn benötigt: Lieferant.get(activeLieferantId) statt list()
+
+Lookup-Struktur:
+- restaurantMap:
+  - useMemo(() => new Map(restaurants.map(r => [r.id, r])), [restaurants])
+  - Helper:
+    - getRestaurant(id) → restaurantMap.get(id) || null
+    - getRestaurantName(id) → restaurantMap.get(id)?.name || '–'
+- uniqueRestaurants:
+  - useMemo(
+      () => [...new Set(bestellungen.map(b => b.restaurant))]
+            .map(id => restaurantMap.get(id))
+            .filter(Boolean),
+      [bestellungen, restaurantMap]
+    )
+
+Filter-Pipeline (useMemo):
+- Input: bestellungen, statusFilter, restaurantFilter, vonDatum, bisDatum, searchText
+- Schritte:
+  1. Status-Filter
+  2. Restaurant-Filter
+  3. Datumsbereich
+  4. Textsuche:
+     - Bestell-ID
+     - Restaurantname über restaurantMap
+  5. Sortierung: new Date(b.bestelldatum) DESC
+
+KPIs (useMemo, Single-Pass):
+- Loop über filteredBestellungen:
+  - counts nach Status (gesendet, bestätigt, in_vorbereitung, unterwegs, geliefert, storniert)
+  - sumRevenue: Summe gesamtsumme/netto
+- Darstellung als StatCards in Header wie bei F12
+
+Status-Config:
+- ORDER_STATUS zentral in /src/config/orderConfig.ts (oder ähnlich)
+- LieferantBestellungen:
+  - Import ORDER_STATUS
+  - Filter-Dropdown baut Optionen aus ORDER_STATUS
+  - BestellungRow nutzt ORDER_STATUS für Badges/Labels
+  - Keine hardcoded Status-Strings im JSX
+
+Batch-Actions:
+- State:
+  - selectedIds: Set<string>
+  - batchAction: 'confirm' | 'prepare' | 'ship' | null
+- UI:
+  - Checkbox pro Zeile + "select all"
+  - BatchActionBar zeigt Anzahl selektierter Orders
+- Mutation:
+  - batchUpdateMutation(useMutation):
+    - mutationFn({ ids, newStatus }) → Promise.all(Bestellung.update(id, { status: newStatus }))
+    - onSuccess:
+      - invalidateQueries(['lieferant-bestellungen', activeLieferantId])
+      - Toast + clearSelection()
+    - Optional onMutate für Optimistic Updates (später)
+
+Fehler- und Loading-Handling:
+- Loading:
+  - wenn isLoading (bestellungen) oder restaurantsLoading:
+    - Skeleton für KPIs + Table
+- Error:
+  - Wenn isError:
+    - Error-Card mit Fehlertext + „Erneut laden“-Button (refetch)
+- Empty:
+  - Wenn !isError && !isLoading && filteredBestellungen.length === 0:
+    - Wenn bestellungen.length === 0 → „Noch keine Bestellungen“
+    - Sonst → „Keine Ergebnisse – Filter zurücksetzen“
+
+Konfiguration:
+- DEFAULT_LIEFERANT_ID aus zentraler Config, nicht hardcoded im Component
+- Auto-Refresh-Interval (30s) ebenfalls aus Config, falls mehrfach genutzt
+
+
 
 
 
